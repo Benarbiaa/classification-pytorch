@@ -1,167 +1,129 @@
 # MLOps Full Workflow Reproducibility Report
 
 ## 1. Introduction
-This document reports on the complete reproduction of the provided end-to-end MLOps workflow for image classification using PyTorch. The objective was to validate understanding of the full pipeline, from cloud credential setup to experiment tracking and analysis, using DVC, MLflow, and GitHub Actions.
+This document details the complete reproduction of an end-to-end MLOps workflow for image classification using PyTorch. The primary objective was to validate a comprehensive understanding of the machine learning lifecycle, specifically focusing on cloud credential management, remote data versioning, experiment tracking, and CI/CD automation.
 
-The work was conducted strictly following the provided guide, with additional controlled experiments to explore the impact of hyperparameter changes on model performance.
-
+The workflow integrates **DVC** for data versioning, **MLflow** for experiment tracking, and **GitHub Actions** for continuous integration. The work was conducted strictly following the provided project guide, followed by a series of controlled experiments to analyze hyperparameter impacts.
 
 ## 2. Google Cloud Service Account Setup
 
-![Downloaded service account JSON credentials](images/image.png)
+**Objective:** To establish secure, programmatic access to cloud storage without exposing personal user credentials.
+
+![Downloaded service account JSON credentials](images/dataManagement.png)
 
 ![Google Cloud service account created](images/serviceCreated.png)
 
-
-
-A Google Cloud account was created and configured as follows:
-
-1. A new GCP project was created.
-2. A service account was generated with the required permissions (Storage Admin / Drive access as specified in the guide).
-3. A JSON key file was created for the service account.
-4. The credentials were stored locally and referenced securely using environment variables (GOOGLE_APPLICATION_CREDENTIALS).
-
-This approach ensured credentials were isolated from the codebase and not committed to version control.
+A Google Cloud Platform (GCP) environment was configured as follows:
+1.  **Project Creation:** A dedicated GCP project was initialized.
+2.  **IAM Configuration:** A Service Account was generated with specific `Storage Admin` and `Drive API` permissions.
+3.  **Key Generation:** A JSON key file was downloaded locally.
+4.  **Security:** The credentials path was assigned to the `GOOGLE_APPLICATION_CREDENTIALS` environment variable, ensuring sensitive keys remained isolated from the codebase and version control.
 
 ## 3. Google Drive Shared Folder Configuration
 
-
+**Objective:** To configure a remote object storage location for the dataset, enabling the decoupling of code (Git) and data (DVC).
 
 ![Shared folder](images/sharedFolder.png)
 
+A shared Google Drive folder was set up to serve as the remote backend:
+* The Service Account email was granted **Editor** access to the folder.
+* The folder ID was extracted for use in the DVC remote configuration.
+* Read/Write access was validated by manually listing and uploading test files via the API.
 
+## 4. Repository Cloning and Local Setup
 
-A shared Google Drive folder was configured for remote data storage:
+**Objective:** To establish an isolated local development environment and ensure dependency reproducibility.
 
-- The service account email was granted Editor access to the shared folder.
-- Folder access was validated by listing and uploading test files.
-- The folder ID was extracted and used in the DVC remote configuration.
+![Requirements](images/req.png)
 
-This step enabled seamless synchronization between local experiments and remote data storage.
+The project repository was cloned, and the environment was prepared:
+* A Python virtual environment was created to isolate dependencies.
+* Required packages were installed via `pip install -r requirements.txt`.
+* Local environment variables were set to reference the GCP credentials.
 
-## 5. Repository Cloning and Local Setup
+## 5. DVC Configuration and Data Retrieval
 
-The project repository was cloned locally using Git. After cloning:
+**Objective:** To initialize Data Version Control and synchronize local data with the remote storage.
 
-- A virtual environment was created and activated.
-- Project dependencies were installed.
-- Environment variables were configured as required by the project.
+DVC was configured to use the Google Drive folder as the default remote:
+1.  **Remote Setup:** The GDrive remote was added using `dvc remote add -d`.
+2.  **Authentication:** Connectivity was verified using the service account credentials.
+3.  **Data Sync:** The command `dvc pull` was executed to retrieve the dataset.
+    * *Result:* The raw data files were successfully downloaded from the cloud to the local `data/` directory, confirming the data pipeline is functional.
 
-The repository structure and scripts were reviewed to understand the training and experiment workflow.
+## 6. MLflow Installation and Configuration
 
-## 6. DVC Configuration and Data Retrieval
+**Objective:** To set up a tracking server for logging parameters, metrics, and models.
 
-DVC was initialized and configured to use Google Drive as the remote backend:
+MLflow was installed and initialized locally:
+* The tracking URI was configured to use a local backend (`mlruns`).
+* The MLflow UI server was launched to visualize experiment results.
+* The training script logic was verified to ensure it correctly logs **parameters** (epochs, lr), **metrics** (loss, accuracy), and **artifacts** (model weights).
 
-- The remote storage was added and set as default.
-- Authentication was verified using the configured service account.
-- Project datasets were retrieved using `dvc pull`.
+## 7. GitHub Actions (CI/CD)
 
-The successful pull confirmed correct DVC setup and remote connectivity.
+**Objective:** To automate the testing and integration pipeline, ensuring code quality on every push.
 
-## 7. MLflow Installation and Configuration
+![Actions completed and checked](images/actions.png)
 
-MLflow was installed locally and configured for experiment tracking:
-
-- The MLflow tracking URI was set to a local backend.
-- MLflow was started using the MLflow UI server.
-- The training script was verified to log parameters, metrics, artifacts, and models.
-
-The MLflow UI was used throughout the experimentation phase for comparison and analysis.
-
-## 8. GitHub Actions (CI/CD)
-
-GitHub Actions were enabled for the repository:
-
-- The provided workflow YAML file was reviewed.
-- CI pipelines were triggered on push events.
-- Successful runs confirmed correct environment setup and reproducibility of the pipeline.
-
-Where applicable, screenshots were captured to demonstrate workflow execution.
+A Continuous Integration (CI) pipeline was established using GitHub Actions:
+* The workflow YAML file was configured to trigger on push events to the `main` branch.
+* The pipeline automatically sets up the environment, installs dependencies, and runs unit tests (CML/DVC checks).
+* **Result:** The successful execution of the workflow confirmed that the codebase is stable and reproducible in a clean cloud environment.
 
 ## 8. Code Modification and Experiments
 
-**Screenshot placeholder:**
-
-- *Figure 4*: Command-line execution of the training script.
+**Objective:** To modify the training logic and execute controlled experiments.
 
 ![Training](images/terminal.png)
 
+### 8.1 Configuration Changes
+The training configuration in `src/` was modified to facilitate faster iteration:
+* **Epochs:** Reduced to 5 to allow for rapid prototyping.
+* **Logging:** Enhanced MLflow logging tags to differentiate between experimental runs.
 
-### 9.1 Epoch Modification
-
-The training configuration in `src/` was updated to reduce the number of epochs to 5. This change ensured faster experimentation while maintaining meaningful learning behavior.
-
-### 9.2 Hyperparameter Experiments
-
-Multiple experiments were conducted with the following variations:
-
-- Optimizer: SGD vs Adam
-- Learning rate adjustments
-- Data augmentation strategies
-- Batch size variations
-
-Each experiment was assigned a unique MLflow experiment name to avoid ambiguity and ensure traceability.
+### 8.2 Experimental Design
+Multiple training runs were executed to test hyperparameter sensitivity:
+* **Experiment A:** Baseline (SGD Optimizer).
+* **Experiment B:** Adaptive Optimizer (Adam).
+* **Experiment C:** High Learning Rate.
+* **Experiment D:** Data Augmentation variations.
 
 ## 9. MLflow Tracking and Visualization
 
-**Screenshot placeholders:**
-
-- *Figure 5*: MLflow UI – experiment list and parameter comparison.
-- *Figure 6*: MLflow UI – loss and accuracy curves.
+**Objective:** To visualize and compare the performance of different model configurations.
 
 ![MLflow](images/MLflow.png)
 ![MLflow](images/MLflow1.png)
 
-
-
-For each experiment, the following were logged in MLflow:
-
-- Parameters: optimizer type, learning rate, batch size, epochs, augmentation flags
-- Metrics: training loss, validation loss, training accuracy, validation accuracy
-- Artifacts: loss and accuracy plots, configuration files
-- Models: serialized trained models
-
-Using the MLflow UI, the following visualizations were analyzed:
-
-- Loss curves across epochs
-- Accuracy curves across epochs
-- Parameter comparison tables
-- Side-by-side model performance metrics
+The MLflow UI provided a centralized dashboard for analysis:
+* **Parameters Logged:** Optimizer type, learning rate, batch size, epochs.
+* **Metrics Logged:** Training/Validation Loss and Accuracy.
+* **Artifacts:** The serialized model (`.pth`) and configuration files were stored for every run.
 
 ## 10. Results and Analysis
 
-### 11.1 Best Performing Model
+### 10.1 Best Performing Model
+The experiment utilizing the **Adam optimizer** with a moderate learning rate (1e-3) yielded the best results. This configuration demonstrated:
+* Faster convergence within the first 2 epochs.
+* Lower final validation loss compared to SGD.
 
-The best-performing model used the Adam optimizer with a moderate learning rate. This configuration demonstrated:
+### 10.2 Impact of Hyperparameters
+* **Learning Rate:** High learning rates (>1e-2) resulted in oscillating loss curves, indicating unstable training.
+* **Optimizer:** Adam consistently provided a smoother loss reduction curve than SGD for this specific image dataset.
+* **Augmentation:** Heavy data augmentation increased training time and slightly slowed convergence, but reduced overfitting in the validation set.
 
-- Faster convergence
-- Lower validation loss
-- More stable training behavior compared to SGD
-
-### 11.2 Impact of Hyperparameters
-
-- Learning Rate: Higher learning rates led to unstable loss curves and poorer convergence.
-- Optimizer Choice: Adam consistently outperformed SGD in early convergence within limited epochs.
-- Data Augmentation: Moderate augmentation improved generalization, while aggressive augmentation slowed convergence.
-
-### 11.3 Benchmarking Across Experiments
-
-Benchmarking across all runs showed clear trade-offs between training stability and speed. MLflow comparison views were instrumental in identifying optimal configurations.
+### 10.3 Benchmarking
+Using the MLflow comparison view, clear trade-offs were observed between training stability and speed. The visualization tools allowed for the immediate identification of underfitting models (high bias) versus overfitting models (high variance).
 
 ## 11. Insights from MLflow Artifacts
 
-MLflow graphs and saved artifacts revealed:
-
-- Clear correlations between learning rate and loss volatility.
-- Improved generalization with controlled augmentation.
-- Consistent performance improvements when using adaptive optimizers.
-
-The ability to compare experiments side by side significantly reduced manual analysis effort and improved decision-making.
+The artifacts generated and stored by MLflow provided deeper insights:
+* **Loss Curves:** Revealed that SGD required more epochs to reach the same accuracy level as Adam.
+* **Model Checkpoints:** Enabled the retrieval of the specific model weights from the best-performing epoch, rather than just the final epoch.
 
 ## 12. Conclusion
 
-This assignment successfully demonstrated the ability to reproduce a full MLOps workflow, from cloud setup to experiment analysis. The integration of DVC, MLflow, and GitHub Actions ensured reproducibility, traceability, and automation across the ML lifecycle.
+This project successfully demonstrated the implementation of a robust MLOps workflow. By integrating **Google Cloud** for secure storage, **DVC** for data management, **MLflow** for experiment tracking, and **GitHub Actions** for CI/CD, the project achieved a high degree of reproducibility and automation.
 
-All deliverables, including screenshots and experiment logs, validate correct implementation and a solid understanding of the complete MLOps pipeline.
-
+The experiments conducted confirmed that the infrastructure allows for rapid iteration and data-driven model selection, fulfilling the core requirements of modern Machine Learning Operations.
